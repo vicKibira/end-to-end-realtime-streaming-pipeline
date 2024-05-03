@@ -1,1 +1,0 @@
-# end-to-end-realtime-streaming-pipeline
