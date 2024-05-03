@@ -1,7 +1,10 @@
+version: '3'
+
 networks:
   default:
     name: kafka-spark-network
     external: true
+
 services:
   broker:
     image: confluentinc/cp-kafka:7.4.0
@@ -22,6 +25,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
   schema-registry:
     image: confluentinc/cp-schema-registry:7.4.0
     hostname: schema-registry
@@ -30,12 +34,12 @@ services:
       - zookeeper
       - broker
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
-      # SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: "zookeeper:2181" #(depreciated)
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "broker:29092"
       SCHEMA_REGISTRY_HOST_NAME: "localhost"
-      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081" #(default: http://0.0.0.0:8081)
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
@@ -45,6 +49,7 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.4.0
     hostname: control-center
@@ -69,7 +74,7 @@ services:
     image: confluentinc/cp-kafka-rest:7.4.0
     hostname: kafka-rest
     ports:
-      - "8082:8082"
+      - "8083:8082"
     depends_on:
       - schema-registry
       - broker
@@ -79,3 +84,39 @@ services:
       KAFKA_REST_SCHEMA_REGISTRY_URL: 'http://localhost:8081'
       KAFKA_REST_HOST_NAME: localhost
       KAFKA_REST_LISTENERS: 'http://0.0.0.0:8082'
+
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: root
+      ME_CONFIG_MONGODB_URL: mongodb://root:root@mongo:27017/
+      ME_CONFIG_BASICAUTH: false
+
+  spark-master:
+    image: bitnami/spark:latest
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+
+  spark-worker:
+    image: bitnami/spark:latest
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_MODE: worker
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_MASTER_URL: spark://spark-master:7077
