@@ -4,6 +4,7 @@ import json
 import csv
 import requests
 import time
+from confluent_kafka import Producer
 
 def download_data():
     url = 'https://randomuser.me/api/'
